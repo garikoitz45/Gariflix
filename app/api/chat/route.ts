@@ -9,18 +9,21 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 
 export const maxDuration = 60
 
-const baseURL = process.env.AI_ENDPOINT_BASE_URL
+// URL base por defecto: OpenRouter (compatible con OpenAI y con modelos gratuitos).
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+const baseURL = process.env.AI_ENDPOINT_BASE_URL?.trim() || DEFAULT_BASE_URL
 const apiKey = process.env.AI_ENDPOINT_API_KEY
-// Modelo principal por defecto. Se puede sobrescribir con AI_MODEL_ID.
-const DEFAULT_MODEL_ID = "NemoMix-Unleashed-12B"
+// Modelo principal por defecto: un modelo gratuito de OpenRouter (los que terminan en ":free" no consumen créditos).
+// Cámbialo con AI_MODEL_ID (por ejemplo un NemoMix que tú alojes).
+const DEFAULT_MODEL_ID = "nousresearch/hermes-3-llama-3.1-405b:free"
 const modelId = process.env.AI_MODEL_ID?.trim() || DEFAULT_MODEL_ID
 
 export async function POST(req: Request) {
-  if (!baseURL || !apiKey) {
+  if (!apiKey) {
     return new Response(
       JSON.stringify({
         error:
-          "Faltan variables de entorno. Configura AI_ENDPOINT_BASE_URL y AI_ENDPOINT_API_KEY (opcionalmente AI_MODEL_ID).",
+          "Falta la API key. Crea una cuenta gratuita en openrouter.ai, genera una API key y añádela como AI_ENDPOINT_API_KEY. Con el modelo gratuito por defecto no se cobra nada.",
       }),
       { status: 500, headers: { "content-type": "application/json" } },
     )

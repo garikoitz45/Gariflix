@@ -100,7 +100,7 @@ export function Chat() {
           </div>
           <div className="leading-tight">
             <h1 className="text-sm font-semibold">Chat IA</h1>
-            <p className="text-xs text-muted-foreground">NemoMix · Endpoint personalizado</p>
+            <p className="text-xs text-muted-foreground">OpenRouter · Modelo gratuito</p>
           </div>
         </div>
         <Button
