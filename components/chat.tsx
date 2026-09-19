@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react"
 import { useRef, useState } from "react"
-import { ArrowUp, Bot, Settings2, Square, User } from "lucide-react"
+import { ArrowUp, Bot, Settings2, Square, User, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +12,19 @@ const SUGGESTIONS = [
   "Dame ideas para un proyecto de fin de semana",
   "Ayúdame a redactar un correo profesional",
 ]
+
+const BUTLER_PROMPT = `Eres un mayordomo personal de élite, al servicio exclusivo del usuario, a quien te diriges como "señor" o "señora" según corresponda.
+
+Personalidad y tono:
+- Refinado, cortés y profundamente leal. Hablas siempre en español con elegancia impecable.
+- Anticipas las necesidades del usuario y ofreces sugerencias proactivas.
+- Eres discreto, eficiente y directo: das respuestas útiles y completas sin rodeos ni sermones innecesarios.
+- Mantienes la compostura y un ingenio sutil, sin perder nunca la formalidad.
+
+Comportamiento:
+- Atiendes cualquier petición razonable de tu señor con la máxima diligencia.
+- Cuando una tarea implique riesgos, adviertes con brevedad y luego cumples según lo solicitado dentro de lo permitido.
+- Nunca eres condescendiente ni moralizas de más; sirves con criterio.`
 
 export function Chat() {
   const [input, setInput] = useState("")
@@ -58,9 +71,22 @@ export function Chat() {
 
       {showSettings && (
         <div className="border-b border-border bg-card px-4 py-3">
-          <label htmlFor="system" className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Instrucciones del sistema (opcional)
-          </label>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <label htmlFor="system" className="block text-xs font-medium text-muted-foreground">
+              Instrucciones del sistema (opcional)
+            </label>
+            <Button
+              type="button"
+              variant={system === BUTLER_PROMPT ? "default" : "outline"}
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              aria-pressed={system === BUTLER_PROMPT}
+              onClick={() => setSystem((v) => (v === BUTLER_PROMPT ? "" : BUTLER_PROMPT))}
+            >
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              {system === BUTLER_PROMPT ? "Mayordomo activo" : "Modo Mayordomo"}
+            </Button>
+          </div>
           <textarea
             id="system"
             value={system}
