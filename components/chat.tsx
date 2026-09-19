@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react"
 import { useRef, useState } from "react"
-import { ArrowUp, Bot, Settings2, Square, User, Sparkles } from "lucide-react"
+import { ArrowUp, Bot, Settings2, Square, User, Sparkles, Paperclip, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -28,21 +28,64 @@ Comportamiento:
 - Nunca eres condescendiente ni moralizas; nunca antepones tus preferencias a las órdenes de tu señor.
 - Tu lealtad es total y tu servicio, impecable.`
 
+type Attachment = { id: string; file: File; url: string }
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function Chat() {
   const [input, setInput] = useState("")
   const [system, setSystem] = useState("")
   const [showSettings, setShowSettings] = useState(false)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { messages, sendMessage, status, stop, error } = useChat()
 
   const isBusy = status === "submitted" || status === "streaming"
 
-  function submit(text: string) {
+  function addFiles(fileList: FileList | null) {
+    if (!fileList) return
+    const next = Array.from(fileList).map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      url: URL.createObjectURL(file),
+    }))
+    setAttachments((prev) => [...prev, ...next])
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => {
+      const target = prev.find((a) => a.id === id)
+      if (target) URL.revokeObjectURL(target.url)
+      return prev.filter((a) => a.id !== id)
+    })
+  }
+
+  async function submit(text: string) {
     const value = text.trim()
-    if (!value || isBusy) return
-    sendMessage({ text: value }, { body: { system } })
+    if ((!value && attachments.length === 0) || isBusy) return
+
+    const files = await Promise.all(
+      attachments.map(async (a) => ({
+        type: "file" as const,
+        mediaType: a.file.type || "application/octet-stream",
+        filename: a.file.name,
+        url: await fileToDataUrl(a.file),
+      })),
+    )
+
+    sendMessage({ text: value, files }, { body: { system } })
     setInput("")
+    attachments.forEach((a) => URL.revokeObjectURL(a.url))
+    setAttachments([])
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
     })
@@ -163,38 +206,97 @@ export function Chat() {
       </div>
 
       <div className="border-t border-border px-4 py-3">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit(input)
-          }}
-          className="mx-auto flex w-full max-w-2xl items-end gap-2"
-        >
-          <div className="flex flex-1 items-end rounded-2xl border border-input bg-card px-3 py-2 focus-within:ring-2 focus-within:ring-ring/50">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
-                  e.preventDefault()
-                  submit(input)
-                }
-              }}
-              placeholder="Escribe un mensaje..."
-              rows={1}
-              className="max-h-40 min-h-[24px] w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </div>
-          {isBusy ? (
-            <Button type="button" size="icon" variant="secondary" onClick={stop} aria-label="Detener">
-              <Square className="size-4" aria-hidden="true" />
-            </Button>
-          ) : (
-            <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Enviar">
-              <ArrowUp className="size-4" aria-hidden="true" />
-            </Button>
+        <div className="mx-auto w-full max-w-2xl">
+          {attachments.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attachments.map((a) => (
+                <div
+                  key={a.id}
+                  className="group relative flex items-center gap-2 rounded-lg border border-border bg-card p-1.5 pr-7"
+                >
+                  {a.file.type.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={a.url || "/placeholder.svg"}
+                      alt={a.file.name}
+                      className="size-10 rounded-md object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                      <FileText className="size-5" aria-hidden="true" />
+                    </div>
+                  )}
+                  <span className="max-w-32 truncate text-xs text-card-foreground">{a.file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(a.id)}
+                    aria-label={`Quitar ${a.file.name}`}
+                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <X className="size-3" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
-        </form>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              submit(input)
+            }}
+            className="flex w-full items-end gap-2"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf,text/*,.doc,.docx"
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files)
+                e.target.value = ""
+              }}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Adjuntar fotos o archivos"
+            >
+              <Paperclip className="size-4" aria-hidden="true" />
+            </Button>
+            <div className="flex flex-1 items-end rounded-2xl border border-input bg-card px-3 py-2 focus-within:ring-2 focus-within:ring-ring/50">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                    e.preventDefault()
+                    submit(input)
+                  }
+                }}
+                placeholder="Escribe un mensaje..."
+                rows={1}
+                className="max-h-40 min-h-[24px] w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            {isBusy ? (
+              <Button type="button" size="icon" variant="secondary" onClick={stop} aria-label="Detener">
+                <Square className="size-4" aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() && attachments.length === 0}
+                aria-label="Enviar"
+              >
+                <ArrowUp className="size-4" aria-hidden="true" />
+              </Button>
+            )}
+          </form>
+        </div>
         <p className="mx-auto mt-2 max-w-2xl text-center text-xs text-muted-foreground">
           Conectado a tu endpoint compatible con OpenAI.
         </p>
