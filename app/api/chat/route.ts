@@ -11,14 +11,16 @@ export const maxDuration = 60
 
 const baseURL = process.env.AI_ENDPOINT_BASE_URL
 const apiKey = process.env.AI_ENDPOINT_API_KEY
-const modelId = process.env.AI_MODEL_ID
+// Modelo principal por defecto. Se puede sobrescribir con AI_MODEL_ID.
+const DEFAULT_MODEL_ID = "NemoMix-Unleashed-12B"
+const modelId = process.env.AI_MODEL_ID?.trim() || DEFAULT_MODEL_ID
 
 export async function POST(req: Request) {
-  if (!baseURL || !apiKey || !modelId) {
+  if (!baseURL || !apiKey) {
     return new Response(
       JSON.stringify({
         error:
-          "Faltan variables de entorno. Configura AI_ENDPOINT_BASE_URL, AI_ENDPOINT_API_KEY y AI_MODEL_ID.",
+          "Faltan variables de entorno. Configura AI_ENDPOINT_BASE_URL y AI_ENDPOINT_API_KEY (opcionalmente AI_MODEL_ID).",
       }),
       { status: 500, headers: { "content-type": "application/json" } },
     )
